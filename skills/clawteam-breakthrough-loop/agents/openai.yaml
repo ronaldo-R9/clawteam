@@ -1,0 +1,6 @@
+interface:
+  display_name: "ClawTeam Breakthrough Loop"
+  short_description: "Run Codex breakthrough ClawTeams"
+  default_prompt: "Use $clawteam-breakthrough-loop to create and run a breakthrough-oriented ClawTeam for this task."
+policy:
+  allow_implicit_invocation: false

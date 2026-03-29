@@ -1,33 +1,60 @@
-# Snake PvP Web App
+# ClawTeam Codex Integration Bundle
 
-## Goal
+This repository packages the ClawTeam coordination skill, the breakthrough-loop
+skill, the launch template, and the supporting Markdown references used in this
+session.
 
-Build a web app with:
+The goal is simple: clone this repo on another machine and install the files
+into Codex and ClawTeam with one command.
 
-- user registration and login
-- authenticated access to a snake game
-- online 1v1 PvP matches
-- persistent score history and match results
+## Included
 
-## Deliverable
+- `skills/clawteam/`
+- `skills/clawteam-breakthrough-loop/`
+- `templates/codex-breakthrough-loop.toml`
+- `examples/snake-pvp-web-goal.md`
+- `install.sh`
 
-A working website where users can register, log in, enter the game lobby, start a real-time two-player snake match, and view recorded scores plus match outcomes.
+## Install On Another Machine
 
-## Success Criteria
+Requirements:
 
-- registration and login work end to end
-- unauthenticated users cannot access the game area
-- two online players can join the same match and play simultaneously
-- scores and match results are stored persistently
-- core flows are usable on desktop browsers
+- Codex installed and configured
+- ClawTeam installed
+- a writable `CODEX_HOME` or `~/.codex`
 
-## Constraints
+Run:
 
-- start from a clean repository
-- prefer a simple architecture that can be shipped quickly
-- keep the first implementation pragmatic before polishing
-- include enough structure for later testing and iteration
+```bash
+git clone https://github.com/ronaldo-R9/clawteam.git
+cd clawteam
+./install.sh
+```
 
-## Breakthrough Target
+The installer copies:
 
-Do not stop at a basic auth form plus a local snake clone. Aim for a small but polished real-time arcade experience with a clean lobby, responsive controls, and clear result tracking.
+- `skills/clawteam` to `$CODEX_HOME/skills/clawteam`
+- `skills/clawteam-breakthrough-loop` to `$CODEX_HOME/skills/clawteam-breakthrough-loop`
+- `templates/codex-breakthrough-loop.toml` to `~/.clawteam/templates/codex-breakthrough-loop.toml`
+
+## Use In Codex
+
+After installation, the other machine can invoke the workflow by asking Codex
+to use the ClawTeam breakthrough loop for a task.
+
+Example launch command:
+
+```bash
+clawteam launch codex-breakthrough-loop \
+  -g "Design and implement a website with registration and login, authenticated access to a snake game, real-time online two-player PvP matches, and persistent score plus match-result tracking." \
+  -t snake-pvp-web-breakthrough \
+  --repo /path/to/your/repo \
+  --command codex \
+  -w
+```
+
+## Notes
+
+- `codex-breakthrough-loop.toml` defaults to `command = ["codex"]`.
+- `clawteam launch` can still override the command at startup with `--command`.
+- This repository stores the portable assets, not the live team runtime state.
