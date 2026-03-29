@@ -11,11 +11,15 @@ mkdir -p "$TEMPLATES_DIR"
 
 rm -rf "$SKILLS_DIR/clawteam"
 rm -rf "$SKILLS_DIR/clawteam-breakthrough-loop"
+rm -f "$TEMPLATES_DIR/breakthrough-loop.toml"
+rm -f "$TEMPLATES_DIR/codex-breakthrough-loop.toml"
 
 cp -R "$REPO_ROOT/skills/clawteam" "$SKILLS_DIR/clawteam"
 cp -R "$REPO_ROOT/skills/clawteam-breakthrough-loop" "$SKILLS_DIR/clawteam-breakthrough-loop"
-cp "$REPO_ROOT/templates/codex-breakthrough-loop.toml" "$TEMPLATES_DIR/codex-breakthrough-loop.toml"
+cp "$REPO_ROOT/templates/breakthrough-loop.toml" "$TEMPLATES_DIR/breakthrough-loop.toml"
+cp "$REPO_ROOT/templates/breakthrough-loop.toml" "$TEMPLATES_DIR/codex-breakthrough-loop.toml"
 
 echo "Installed skills into: $SKILLS_DIR"
-echo "Installed template into: $TEMPLATES_DIR/codex-breakthrough-loop.toml"
+echo "Installed template into: $TEMPLATES_DIR/breakthrough-loop.toml"
+echo "Installed compatibility alias into: $TEMPLATES_DIR/codex-breakthrough-loop.toml"
 echo "Done."

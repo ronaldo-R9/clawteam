@@ -2,7 +2,7 @@
 
 ```yaml
 orchestration:
-  name: codex-breakthrough-loop
+  name: breakthrough-loop
   mode: breakthrough
   runtime:
     command: codex

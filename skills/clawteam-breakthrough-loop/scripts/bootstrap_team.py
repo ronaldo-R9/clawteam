@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Launch the codex-breakthrough-loop ClawTeam template with normalized arguments."""
+"""Launch the breakthrough-loop ClawTeam template with normalized arguments."""
 
 from __future__ import annotations
 
@@ -11,17 +11,23 @@ from pathlib import Path
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Bootstrap a Codex breakthrough-oriented ClawTeam launch command.",
+        description="Bootstrap a breakthrough-oriented ClawTeam launch command.",
     )
     parser.add_argument("--goal", required=True, help="Team goal injected into the template.")
     parser.add_argument("--repo", required=True, help="Repository or working directory.")
     parser.add_argument("--team-name", default="", help="Optional explicit team name.")
     parser.add_argument(
         "--template-name",
-        default="codex-breakthrough-loop",
+        default="breakthrough-loop",
         help="ClawTeam template name to launch.",
     )
     parser.add_argument("--command", default="codex", help="Agent command override.")
+    parser.add_argument(
+        "--command-arg",
+        action="append",
+        default=[],
+        help="Additional arguments appended to the agent command. Repeat as needed. Use --command-arg=VALUE when VALUE begins with '-'.",
+    )
     parser.add_argument("--backend", default="", help="Optional backend override.")
     parser.add_argument(
         "--no-workspace",
@@ -41,7 +47,19 @@ def main() -> int:
     args = parser.parse_args()
 
     repo = Path(args.repo).expanduser().resolve()
-    command = ["clawteam", "launch", args.template_name, "-g", args.goal, "--repo", str(repo), "--command", args.command]
+    command = [
+        "clawteam",
+        "launch",
+        args.template_name,
+        "-g",
+        args.goal,
+        "--repo",
+        str(repo),
+        "--command",
+        args.command,
+    ]
+    for value in args.command_arg:
+        command.extend(["--command-arg", value])
 
     if args.team_name:
         command.extend(["-t", args.team_name])

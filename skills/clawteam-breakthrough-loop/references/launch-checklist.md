@@ -15,6 +15,7 @@ launch_checklist:
     - backend: tmux
     - isolated_workspace_per_agent: true
     - max_rounds: 4
+    - command_override_supported_via_launch_flags
 
   spawn_order:
     - create team with supervisor

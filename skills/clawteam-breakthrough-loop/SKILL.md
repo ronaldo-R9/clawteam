@@ -1,13 +1,15 @@
 ---
 name: clawteam-breakthrough-loop
-description: Create and run a Codex + ClawTeam breakthrough-oriented multi-agent team with supervisor, worker, explorer, reviewer, and verifier. Use when a task benefits from divergent exploration, iterative critique, objective verification, forced state summarization, and round-3 convergence instead of a single-pass answer.
+description: Create and run a ClawTeam breakthrough-oriented multi-agent team with supervisor, worker, explorer, reviewer, and verifier. Use when a task benefits from divergent exploration, iterative critique, objective verification, forced state summarization, and round-3 convergence instead of a single-pass answer.
 ---
 
 # ClawTeam Breakthrough Loop
 
 ## Overview
 
-Use this skill to create and run a breakthrough-oriented `ClawTeam` that uses `codex` for every agent role. The team structure is fixed: `supervisor`, `worker`, `explorer`, `reviewer`, and `verifier`.
+Use this skill to create and run a breakthrough-oriented `ClawTeam`. The team structure is fixed: `supervisor`, `worker`, `explorer`, `reviewer`, and `verifier`.
+
+The template defaults to `codex`, but the launch command can be overridden at runtime to use another supported CLI such as `gemini`.
 
 This skill is for tasks where quality improves from controlled divergence and multi-round revision, not for trivial single-pass work.
 
@@ -26,8 +28,8 @@ If the user omits any of these, derive conservative defaults and state them in t
 ## Launch Workflow
 
 1. Confirm the task is complex enough to justify a breakthrough loop. Use a simpler flow for routine changes.
-2. Use the `codex-breakthrough-loop` ClawTeam template.
-3. Launch with `codex` as the command and isolated workspaces by default.
+2. Use the `breakthrough-loop` ClawTeam template.
+3. Launch with `codex` as the default command and isolated workspaces by default. Override `--command` when you need another CLI.
 4. Let the `supervisor` run the round structure.
 5. Require `reviewer` and `verifier` results on every worker submission.
 6. After each review and verification cycle, require a canonical `STATE SUMMARY`.
@@ -53,7 +55,7 @@ Read only what is needed:
 
 ## Assets And Scripts
 
-- The ClawTeam template source lives at [assets/codex-breakthrough-loop.toml](assets/codex-breakthrough-loop.toml).
+- The ClawTeam template source lives at [assets/breakthrough-loop.toml](assets/breakthrough-loop.toml).
 - The helper launcher lives at [scripts/bootstrap_team.py](scripts/bootstrap_team.py).
 
 Use the helper launcher when you want a consistent `clawteam launch ...` command without rebuilding arguments by hand.
@@ -63,11 +65,24 @@ Use the helper launcher when you want a consistent `clawteam launch ...` command
 Use this pattern unless the task needs different settings:
 
 ```bash
-clawteam launch codex-breakthrough-loop \
+clawteam launch breakthrough-loop \
   -g "<goal>" \
   -t "<team-name>" \
   --repo "<repo-path>" \
   --command codex \
+  -w
+```
+
+Gemini example:
+
+```bash
+clawteam launch breakthrough-loop \
+  -g "<goal>" \
+  -t "<team-name>" \
+  --repo "<repo-path>" \
+  --command gemini \
+  --command-arg=--model \
+  --command-arg gemini-3.1-pro-preview \
   -w
 ```
 

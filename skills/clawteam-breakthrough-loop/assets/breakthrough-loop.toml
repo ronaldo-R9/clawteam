@@ -1,6 +1,6 @@
 [template]
-name = "codex-breakthrough-loop"
-description = "Codex breakthrough-oriented multi-agent team with supervisor, worker, explorer, reviewer, and verifier"
+name = "breakthrough-loop"
+description = "Breakthrough-oriented multi-agent team with supervisor, worker, explorer, reviewer, and verifier"
 command = ["codex"]
 backend = "tmux"
 
