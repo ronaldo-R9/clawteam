@@ -10,6 +10,7 @@ description: Create and run a ClawTeam breakthrough-oriented multi-agent team wi
 Use this skill to create and run a breakthrough-oriented `ClawTeam`. The team structure is fixed: `supervisor`, `worker`, `explorer`, `reviewer`, and `verifier`.
 
 The template defaults to `codex`, but the launch command can be overridden at runtime to use another supported CLI such as `gemini`.
+Inter-agent communication defaults to Simplified Chinese unless the user explicitly requests another language. Literal code artifacts such as commands, file paths, API names, and identifiers should remain unchanged.
 
 This skill is for tasks where quality improves from controlled divergence and multi-round revision, not for trivial single-pass work.
 
@@ -31,14 +32,19 @@ If the user omits any of these, derive conservative defaults and state them in t
 2. Use the `breakthrough-loop` ClawTeam template.
 3. Launch with `codex` as the default command and isolated workspaces by default. Override `--command` when you need another CLI.
 4. Let the `supervisor` run the round structure.
-5. Require `reviewer` and `verifier` results on every worker submission.
-6. After each review and verification cycle, require a canonical `STATE SUMMARY`.
-7. In round 3, force convergence. Do not allow open-ended exploration to continue unchanged.
-8. Only finish when `reviewer = APPROVED` and `verifier = PASS`.
+5. Require `reviewer` and `verifier` results on every worker submission, but route both formal gate results to `supervisor` first.
+6. For user-facing deliverables, require explicit visible-surface acceptance criteria in the kickoff and treat obvious UI or UX defects as blocking issues.
+7. For user-facing deliverables, require reviewer manual inspection and verifier runtime smoke evidence before acceptance.
+8. Require every worker submission to include a `revision id`, and only count gate results when reviewer and verifier refer to the same revision.
+9. After each review and verification cycle, require a canonical `STATE SUMMARY` plus one merged `REVISION BRIEF` from `supervisor` to `worker`.
+10. In round 3, force convergence. Do not allow open-ended exploration to continue unchanged.
+11. Only finish when `reviewer = APPROVED` and `verifier = PASS` for the same revision.
+12. Unless the user explicitly requests another language, require all team messages to be written in Simplified Chinese while preserving literal technical identifiers.
 
 ## Operating Rules
 
 - Treat the latest `STATE SUMMARY` as the binding team context.
+- Treat the latest supervisor-issued `REVISION BRIEF` as the only authoritative worker todo list.
 - If the same blocker appears twice, require targeted re-exploration or a pivot.
 - Downgrade unsupported breakthrough claims into hypotheses, experiments, or future work.
 - Round 4 is final tightening only unless the supervisor writes an explicit extension justification.
