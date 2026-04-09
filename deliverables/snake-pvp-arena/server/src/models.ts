@@ -76,9 +76,10 @@ export interface SnakeSnapshot {
 
 export interface RoomSnapshot {
   roomCode: string;
-  status: 'waiting' | 'playing' | 'finished';
+  status: 'waiting' | 'countdown' | 'playing' | 'finished';
   createdAt: string;
   tick: number;
+  countdown: number | null;
   grid: {
     width: number;
     height: number;

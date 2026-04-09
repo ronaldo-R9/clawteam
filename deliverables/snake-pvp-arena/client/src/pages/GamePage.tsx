@@ -6,8 +6,9 @@ import { useSocket } from '../hooks/useSocket';
 
 interface RoomSnapshot {
   roomCode: string;
-  status: 'waiting' | 'playing' | 'finished';
+  status: 'waiting' | 'countdown' | 'playing' | 'finished';
   tick: number;
+  countdown: number | null;
   grid: { width: number; height: number };
   players: Array<{ userId: string; username: string; color: string; connected: boolean }>;
   snakes: Array<{
@@ -112,9 +113,6 @@ export default function GamePage() {
     navigate('/');
   }, [socket, navigate]);
 
-  const mySnake = state?.snakes.find((s) => s.userId === user?.id);
-  const opponentSnake = state?.snakes.find((s) => s.userId !== user?.id);
-
   return (
     <div
       className="min-h-screen flex flex-col bg-slate-900"
@@ -129,6 +127,7 @@ export default function GamePage() {
         <span className="text-sm text-slate-400 font-mono">房间 {state?.roomCode ?? roomCode}</span>
         <span className="text-sm text-slate-500">
           {state?.status === 'waiting' && '等待对手...'}
+          {state?.status === 'countdown' && '即将开始'}
           {state?.status === 'playing' && `Tick ${state.tick}`}
           {state?.status === 'finished' && '已结束'}
         </span>
@@ -168,15 +167,24 @@ export default function GamePage() {
           </div>
         )}
 
+        {state?.status === 'countdown' && state.countdown !== null && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-slate-900/60">
+            <div className="text-8xl font-black text-orange-400 animate-bounce drop-shadow-lg">
+              {state.countdown}
+            </div>
+            <div className="text-lg text-slate-300 mt-4">准备战斗!</div>
+          </div>
+        )}
+
         {state?.status === 'finished' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-slate-900/80">
             <div className="bg-slate-800 rounded-2xl p-8 shadow-2xl text-center max-w-sm">
-              <h2 className="text-3xl font-bold mb-4">
+              <h2 className="text-3xl font-bold mb-2">
                 {state.winner
                   ? state.winner.userId === user?.id
-                    ? '胜利!'
-                    : '失败'
-                  : '平局'}
+                    ? '🏆 胜利!'
+                    : '💀 失败'
+                  : '🤝 平局'}
               </h2>
               {state.winner && (
                 <p className="text-slate-400 mb-4">
@@ -190,6 +198,11 @@ export default function GamePage() {
                   <div key={snake.userId} className="text-center">
                     <div className="text-sm text-slate-400">{snake.username}</div>
                     <div className="text-2xl font-bold text-orange-400">{snake.score}</div>
+                    <div className={`text-xs mt-1 ${
+                      state.winner?.userId === snake.userId ? 'text-green-400' : 'text-red-400'
+                    }`}>
+                      {state.winner?.userId === snake.userId ? '胜' : state.winner ? '负' : '平'}
+                    </div>
                   </div>
                 ))}
               </div>

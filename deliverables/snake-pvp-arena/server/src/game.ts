@@ -24,11 +24,14 @@ interface SnakeRuntime extends SnakeSnapshot {
 interface RoomRuntime {
   roomCode: string;
   createdAt: string;
-  status: 'waiting' | 'playing' | 'finished';
+  status: 'waiting' | 'countdown' | 'playing' | 'finished';
   players: PlayerRuntime[];
+  spectators: Set<string>;
   snakes: SnakeRuntime[];
   food: Cell | null;
   tick: number;
+  countdown: number | null;
+  countdownTimer: NodeJS.Timeout | null;
   winner: {
     userId: string;
     username: string;
@@ -101,9 +104,12 @@ export class SnakeArenaService {
           socketId: socket.id
         }
       ],
+      spectators: new Set(),
       snakes: [],
       food: null,
       tick: 0,
+      countdown: null,
+      countdownTimer: null,
       winner: null,
       reason: null,
       interval: null
@@ -154,7 +160,7 @@ export class SnakeArenaService {
     });
     this.playerRooms.set(user.userId, roomCode);
     socket.join(roomCode);
-    this.startGame(room);
+    this.startCountdown(room);
     this.emitUpdate(room);
 
     return { ok: true, roomCode, state: this.snapshot(room) };
@@ -170,12 +176,13 @@ export class SnakeArenaService {
 
     const player = room.players.find((entry) => entry.userId === user.userId);
 
-    if (!player) {
-      return { ok: false, error: '你不在这个房间中' };
+    if (player) {
+      player.socketId = socket.id;
+      player.connected = true;
+    } else {
+      room.spectators.add(socket.id);
     }
 
-    player.socketId = socket.id;
-    player.connected = true;
     socket.join(normalizedCode);
     this.emitUpdate(room);
 
@@ -229,7 +236,7 @@ export class SnakeArenaService {
       return;
     }
 
-    if (room.status === 'playing') {
+    if (room.status === 'playing' || room.status === 'countdown') {
       this.finishRoom(room, 'opponent_left', user.userId);
       return;
     }
@@ -265,7 +272,7 @@ export class SnakeArenaService {
       return;
     }
 
-    if (room.status === 'playing') {
+    if (room.status === 'playing' || room.status === 'countdown') {
       this.finishRoom(room, 'disconnect', user.userId);
       return;
     }
@@ -274,9 +281,9 @@ export class SnakeArenaService {
     this.leaveRoom(user, socketId);
   }
 
-  private startGame(room: RoomRuntime): void {
-    room.status = 'playing';
-    room.tick = 0;
+  private startCountdown(room: RoomRuntime): void {
+    room.status = 'countdown';
+    room.countdown = 3;
     room.reason = null;
     room.winner = null;
     room.snakes = room.players.map((player, index) => ({
@@ -290,7 +297,29 @@ export class SnakeArenaService {
       alive: true
     }));
     room.food = this.spawnFood(room.snakes);
+    this.emitUpdate(room);
+
+    room.countdownTimer = setInterval(() => {
+      if (room.countdown === null || room.countdown <= 1) {
+        if (room.countdownTimer) {
+          clearInterval(room.countdownTimer);
+          room.countdownTimer = null;
+        }
+        room.countdown = null;
+        this.startGame(room);
+        return;
+      }
+      room.countdown -= 1;
+      this.emitUpdate(room);
+    }, 1000);
+  }
+
+  private startGame(room: RoomRuntime): void {
+    room.status = 'playing';
+    room.tick = 0;
+    room.countdown = null;
     room.interval = setInterval(() => this.advanceRoom(room.roomCode), TICK_MS);
+    this.emitUpdate(room);
   }
 
   private advanceRoom(roomCode: string): void {
@@ -400,6 +429,11 @@ export class SnakeArenaService {
       room.interval = null;
     }
 
+    if (room.countdownTimer) {
+      clearInterval(room.countdownTimer);
+      room.countdownTimer = null;
+    }
+
     room.status = 'finished';
     room.reason = reason;
 
@@ -446,6 +480,9 @@ export class SnakeArenaService {
     });
 
     this.emitUpdate(room);
+
+    // Auto-cleanup finished rooms after 30 seconds
+    setTimeout(() => this.destroyRoom(room.roomCode), 30_000);
   }
 
   private emitUpdate(room: RoomRuntime): void {
@@ -458,6 +495,7 @@ export class SnakeArenaService {
       status: room.status,
       createdAt: room.createdAt,
       tick: room.tick,
+      countdown: room.countdown,
       grid: {
         width: GRID_WIDTH,
         height: GRID_HEIGHT
@@ -505,6 +543,10 @@ export class SnakeArenaService {
 
     if (room?.interval) {
       clearInterval(room.interval);
+    }
+
+    if (room?.countdownTimer) {
+      clearInterval(room.countdownTimer);
     }
 
     if (room) {

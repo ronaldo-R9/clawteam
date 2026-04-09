@@ -17,8 +17,9 @@ interface SnakeSnapshot {
 
 interface RoomSnapshot {
   roomCode: string;
-  status: 'waiting' | 'playing' | 'finished';
+  status: 'waiting' | 'countdown' | 'playing' | 'finished';
   tick: number;
+  countdown: number | null;
   grid: { width: number; height: number };
   players: Array<{ userId: string; username: string; color: string; connected: boolean }>;
   snakes: SnakeSnapshot[];
@@ -43,16 +44,18 @@ interface Props {
 
 const CELL_PX = 20;
 const PARTICLE_COUNT = 12;
+const DEATH_PARTICLE_COUNT = 24;
 
 export default function GameCanvas({ state }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
   const prevFoodRef = useRef<Cell | null>(null);
+  const prevAliveRef = useRef<Map<string, boolean>>(new Map());
   const animRef = useRef<number>(0);
 
-  const spawnParticles = useCallback((x: number, y: number, color: string) => {
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      const angle = (Math.PI * 2 * i) / PARTICLE_COUNT + Math.random() * 0.5;
+  const spawnParticles = useCallback((x: number, y: number, color: string, count: number = PARTICLE_COUNT) => {
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
       const speed = 1 + Math.random() * 2;
       particlesRef.current.push({
         x: (x + 0.5) * CELL_PX,
@@ -66,6 +69,7 @@ export default function GameCanvas({ state }: Props) {
     }
   }, []);
 
+  // Food eaten particles
   useEffect(() => {
     if (!state || !state.food) return;
 
@@ -75,6 +79,20 @@ export default function GameCanvas({ state }: Props) {
     }
     prevFoodRef.current = state.food;
   }, [state?.food, state?.tick, spawnParticles]);
+
+  // Death particles
+  useEffect(() => {
+    if (!state) return;
+
+    for (const snake of state.snakes) {
+      const wasAlive = prevAliveRef.current.get(snake.userId);
+      if (wasAlive === true && !snake.alive && snake.body.length > 0) {
+        const head = snake.body[0];
+        spawnParticles(head.x, head.y, snake.color, DEATH_PARTICLE_COUNT);
+      }
+      prevAliveRef.current.set(snake.userId, snake.alive);
+    }
+  }, [state?.tick, state?.snakes, spawnParticles]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -120,13 +138,14 @@ export default function GameCanvas({ state }: Props) {
         return;
       }
 
-      // Food
+      // Food with pulsing glow
       if (state.food) {
         const fx = state.food.x * CELL_PX;
         const fy = state.food.y * CELL_PX;
+        const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 300);
         ctx.fillStyle = '#ef4444';
         ctx.shadowColor = '#ef4444';
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = 8 * pulse;
         ctx.beginPath();
         ctx.arc(fx + CELL_PX / 2, fy + CELL_PX / 2, CELL_PX / 2.5, 0, Math.PI * 2);
         ctx.fill();
@@ -156,24 +175,58 @@ export default function GameCanvas({ state }: Props) {
           ctx.fill();
           ctx.shadowBlur = 0;
 
-          // Eyes on head
+          // Direction-aware eyes on head
           if (isHead && snake.alive) {
-            ctx.fillStyle = '#fff';
             const cx = px + CELL_PX / 2;
             const cy = py + CELL_PX / 2;
-            const ed = 3;
+            const eyeOffset = 3;
+            const pupilShift = 1.5;
+
+            let eye1x: number, eye1y: number, eye2x: number, eye2y: number;
+            let pupil1x: number, pupil1y: number, pupil2x: number, pupil2y: number;
+
+            switch (snake.direction) {
+              case 'up':
+                eye1x = cx - eyeOffset; eye1y = cy - eyeOffset;
+                eye2x = cx + eyeOffset; eye2y = cy - eyeOffset;
+                pupil1x = eye1x; pupil1y = eye1y - pupilShift;
+                pupil2x = eye2x; pupil2y = eye2y - pupilShift;
+                break;
+              case 'down':
+                eye1x = cx - eyeOffset; eye1y = cy + eyeOffset;
+                eye2x = cx + eyeOffset; eye2y = cy + eyeOffset;
+                pupil1x = eye1x; pupil1y = eye1y + pupilShift;
+                pupil2x = eye2x; pupil2y = eye2y + pupilShift;
+                break;
+              case 'left':
+                eye1x = cx - eyeOffset; eye1y = cy - eyeOffset;
+                eye2x = cx - eyeOffset; eye2y = cy + eyeOffset;
+                pupil1x = eye1x - pupilShift; pupil1y = eye1y;
+                pupil2x = eye2x - pupilShift; pupil2y = eye2y;
+                break;
+              case 'right':
+              default:
+                eye1x = cx + eyeOffset; eye1y = cy - eyeOffset;
+                eye2x = cx + eyeOffset; eye2y = cy + eyeOffset;
+                pupil1x = eye1x + pupilShift; pupil1y = eye1y;
+                pupil2x = eye2x + pupilShift; pupil2y = eye2y;
+                break;
+            }
+
+            ctx.fillStyle = '#fff';
             ctx.beginPath();
-            ctx.arc(cx - ed, cy - ed, 2, 0, Math.PI * 2);
+            ctx.arc(eye1x, eye1y, 2.5, 0, Math.PI * 2);
             ctx.fill();
             ctx.beginPath();
-            ctx.arc(cx + ed, cy - ed, 2, 0, Math.PI * 2);
+            ctx.arc(eye2x, eye2y, 2.5, 0, Math.PI * 2);
             ctx.fill();
+
             ctx.fillStyle = '#000';
             ctx.beginPath();
-            ctx.arc(cx - ed, cy - ed, 1, 0, Math.PI * 2);
+            ctx.arc(pupil1x, pupil1y, 1.2, 0, Math.PI * 2);
             ctx.fill();
             ctx.beginPath();
-            ctx.arc(cx + ed, cy - ed, 1, 0, Math.PI * 2);
+            ctx.arc(pupil2x, pupil2y, 1.2, 0, Math.PI * 2);
             ctx.fill();
           }
         }
