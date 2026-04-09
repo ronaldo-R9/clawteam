@@ -5,3 +5,10 @@ build/
 *.log
 .env
 .clawteam-data/
+.claude/
+__pycache__/
+runs/
+hermes/
+TEAM_BLOCKED.md
+*.tsbuildinfo
+deliverables/snake-pvp-arena/client/data/
