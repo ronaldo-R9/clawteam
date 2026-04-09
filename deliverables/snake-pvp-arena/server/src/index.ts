@@ -124,7 +124,7 @@ app.get('/api/stats/me', authenticateHttp, (request, response) => {
   response.json(profile);
 });
 
-app.get('/api/leaderboard', (request, response) => {
+app.get('/api/leaderboard', authenticateHttp, (request, response) => {
   const offset = Math.max(0, Number(request.query.offset) || 0);
   const limit = Math.min(100, Math.max(1, Number(request.query.limit) || 20));
   const users = database.getLeaderboard(offset, limit);
@@ -191,6 +191,10 @@ io.on('connection', (socket) => {
 
   socket.on('room:leave', () => {
     arena.leaveRoom(user, socket.id);
+  });
+
+  socket.on('rematch:request', () => {
+    arena.requestRematch(user);
   });
 
   socket.on('direction:set', (payload: { direction?: Direction }) => {

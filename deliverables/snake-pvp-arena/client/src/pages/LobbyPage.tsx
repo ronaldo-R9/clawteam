@@ -25,7 +25,7 @@ export default function LobbyPage() {
     });
 
     socket.on('match:status', (data: { position: number }) => {
-      setMatchStatus(`队列中，前方 ${data.position} 人`);
+      setMatchStatus(`队列中，你是第 ${data.position} 位`);
     });
 
     socket.emit('lobby:join');

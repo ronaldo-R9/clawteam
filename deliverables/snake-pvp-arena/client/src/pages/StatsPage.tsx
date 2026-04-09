@@ -49,12 +49,14 @@ export default function StatsPage() {
   }, [token]);
 
   useEffect(() => {
-    if (tab !== 'leaderboard') return;
-    fetch(`/api/leaderboard?offset=${page * 20}&limit=20`)
+    if (tab !== 'leaderboard' || !token) return;
+    fetch(`/api/leaderboard?offset=${page * 20}&limit=20`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
       .then((r) => r.json())
       .then((data) => setLeaderboard(data.users ?? []))
       .catch(() => {});
-  }, [tab, page]);
+  }, [tab, page, token]);
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);

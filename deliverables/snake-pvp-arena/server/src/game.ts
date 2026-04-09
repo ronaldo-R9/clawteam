@@ -38,6 +38,7 @@ interface RoomRuntime {
   } | null;
   reason: string | null;
   interval: NodeJS.Timeout | null;
+  rematchRequests: Set<string>;
 }
 
 interface AckResponse {
@@ -112,7 +113,8 @@ export class SnakeArenaService {
       countdownTimer: null,
       winner: null,
       reason: null,
-      interval: null
+      interval: null,
+      rematchRequests: new Set()
     };
 
     this.rooms.set(roomCode, room);
@@ -187,6 +189,29 @@ export class SnakeArenaService {
     this.emitUpdate(room);
 
     return { ok: true, roomCode: normalizedCode, state: this.snapshot(room) };
+  }
+
+  requestRematch(user: AuthenticatedUser): { ok: boolean; started?: boolean } {
+    const roomCode = this.playerRooms.get(user.userId);
+    if (!roomCode) return { ok: false };
+
+    const room = this.rooms.get(roomCode);
+    if (!room || room.status !== 'finished') return { ok: false };
+
+    room.rematchRequests.add(user.userId);
+
+    // Notify room about rematch request
+    this.io.to(roomCode).emit('rematch:requested', { userId: user.userId });
+
+    // Check if all players want rematch
+    const allPlayersWant = room.players.every((p) => room.rematchRequests.has(p.userId));
+    if (allPlayersWant && room.players.length === 2) {
+      room.rematchRequests.clear();
+      this.startCountdown(room);
+      return { ok: true, started: true };
+    }
+
+    return { ok: true, started: false };
   }
 
   setDirection(user: AuthenticatedUser, direction: Direction): void {

@@ -32,6 +32,8 @@ export default function GamePage() {
   const navigate = useNavigate();
   const [state, setState] = useState<RoomSnapshot | null>(null);
   const [joined, setJoined] = useState(false);
+  const [rematchSent, setRematchSent] = useState(false);
+  const [rematchPending, setRematchPending] = useState<string | null>(null);
 
   // Join or reconnect to room
   useEffect(() => {
@@ -50,13 +52,27 @@ export default function GamePage() {
     if (!socket) return;
 
     socket.on('room:update', (snapshot: RoomSnapshot) => {
-      setState(snapshot);
+      setState((prev) => {
+        // Reset rematch state on new game
+        if (prev?.status === 'finished' && snapshot.status !== 'finished') {
+          setRematchSent(false);
+          setRematchPending(null);
+        }
+        return snapshot;
+      });
+    });
+
+    socket.on('rematch:requested', (data: { userId: string }) => {
+      if (data.userId !== user?.id) {
+        setRematchPending(data.userId);
+      }
     });
 
     return () => {
       socket.off('room:update');
+      socket.off('rematch:requested');
     };
-  }, [socket]);
+  }, [socket, user?.id]);
 
   // Keyboard controls
   useEffect(() => {
@@ -112,6 +128,12 @@ export default function GamePage() {
     if (socket) socket.emit('room:leave');
     navigate('/');
   }, [socket, navigate]);
+
+  const handleRematch = useCallback(() => {
+    if (!socket || rematchSent) return;
+    socket.emit('rematch:request');
+    setRematchSent(true);
+  }, [socket, rematchSent]);
 
   return (
     <div
@@ -206,12 +228,30 @@ export default function GamePage() {
                   </div>
                 ))}
               </div>
-              <button
-                onClick={handleLeave}
-                className="px-6 py-2 bg-orange-600 hover:bg-orange-500 rounded-lg font-semibold transition"
-              >
-                返回大厅
-              </button>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={handleRematch}
+                  disabled={rematchSent}
+                  className={`px-6 py-2 rounded-lg font-semibold transition ${
+                    rematchSent
+                      ? 'bg-slate-600 text-slate-400'
+                      : 'bg-green-600 hover:bg-green-500'
+                  }`}
+                >
+                  {rematchSent ? '等待对手...' : '再来一局'}
+                </button>
+                <button
+                  onClick={handleLeave}
+                  className="px-6 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-semibold transition"
+                >
+                  返回大厅
+                </button>
+              </div>
+              {rematchPending && !rematchSent && (
+                <p className="text-sm text-green-400 mt-2 animate-pulse">
+                  对手请求再来一局!
+                </p>
+              )}
             </div>
           </div>
         )}
