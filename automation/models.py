@@ -59,8 +59,8 @@ class SchedulerDecision(str, Enum):
 
 @dataclass(frozen=True)
 class Defaults:
-    scheduler_model: str = "gpt-5.4"
-    scheduler_reasoning_effort: str = "xhigh"
+    scheduler_model: str = "opus-4.6"
+    scheduler_reasoning_effort: str = "max"
     team_model: str = "gpt-5.4"
     team_reasoning_effort: str = "medium"
     diagnosis_model: str = "opus-4.6"
@@ -69,10 +69,10 @@ class Defaults:
     inner_max_rounds: int = 3
     silent_timeout_seconds: int = 300
     acknowledged_busy_timeout_seconds: int = 900
-    warmup_window_seconds: int = 120
+    warmup_window_seconds: int = 180
     success_hold_min_seconds: int = 180
     success_hold_max_seconds: int = 300
-    inbox_growth_consecutive_ticks: int = 2
+    inbox_growth_consecutive_ticks: int = 3
     inbox_growth_total_threshold: int = 3
     monitor_poll_interval_seconds: int = 30
     monitor_max_ticks: int = 40

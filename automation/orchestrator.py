@@ -177,7 +177,7 @@ class OrchestratorScaffold:
             "--repo",
             str(self.ctx.repo_path),
             "--command",
-            "codex",
+            "claude",
         ]
 
     def _team_exists(self, team_name: str) -> bool:

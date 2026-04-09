@@ -9,6 +9,10 @@ except ImportError:
 
 GATE_ROLES = ("reviewer", "verifier", "explorer")
 
+# During the first N ticks after warmup, gate-role idle/completed is P1 (not P0)
+# to give the team time to self-correct before hard-stopping.
+EARLY_GRACE_TICKS = 3
+
 
 def _gate_member(snapshot: MonitorSnapshot, role: str) -> MemberSnapshot | None:
     return snapshot.members.get(role)
@@ -20,6 +24,22 @@ def evaluate_snapshot(
 ) -> list[Finding]:
     previous = previous or []
     findings: list[Finding] = []
+    tick_count = len(previous) + 1
+    in_grace_period = tick_count <= EARLY_GRACE_TICKS
+
+    # When the team has made protocol progress, a single agent going idle/completed
+    # is less critical — downgrade to P1 to let the team try to self-correct.
+    protocol_progressing = (
+        snapshot.protocol_flags.get("kickoffs_sent", False)
+        and snapshot.protocol_flags.get("worker_revision_submitted", False)
+    )
+
+    idle_or_completed_count = sum(
+        1
+        for role in GATE_ROLES
+        if (m := snapshot.members.get(role))
+        and (m.lifecycle_state.lower() == "idle" or m.task_status.lower() == "completed")
+    )
 
     for role in GATE_ROLES:
         member = _gate_member(snapshot, role)
@@ -35,10 +55,13 @@ def evaluate_snapshot(
             continue
 
         if member.lifecycle_state.lower() == "idle":
+            severity = Severity.P0
+            if in_grace_period or (protocol_progressing and idle_or_completed_count == 1):
+                severity = Severity.P1
             findings.append(
                 Finding(
                     code=f"{role}_idle_before_shutdown",
-                    severity=Severity.P0,
+                    severity=severity,
                     summary=f"{role} entered idle before shutdown",
                     reason="Gate roles must stay in inbox loop until explicit shutdown.",
                     owner=role,
@@ -46,10 +69,13 @@ def evaluate_snapshot(
             )
 
         if member.task_status.lower() == "completed":
+            severity = Severity.P0
+            if in_grace_period or (protocol_progressing and idle_or_completed_count == 1):
+                severity = Severity.P1
             findings.append(
                 Finding(
                     code=f"{role}_completed_before_shutdown",
-                    severity=Severity.P0,
+                    severity=severity,
                     summary=f"{role} marked task completed before shutdown",
                     reason="Gate roles may not complete early.",
                     owner=role,

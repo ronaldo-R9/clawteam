@@ -1,7 +1,7 @@
 [template]
 name = "breakthrough-loop"
 description = "Breakthrough-oriented multi-agent team with supervisor, worker, explorer, reviewer, and verifier"
-command = ["codex"]
+command = ["claude"]
 backend = "tmux"
 inter_agent_language = "Simplified Chinese"
 

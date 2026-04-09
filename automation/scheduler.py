@@ -99,9 +99,23 @@ class SchedulerClient:
         if snapshot.phase == "warmup":
             return False
 
+        # When protocol is progressing and only one gate role is down,
+        # exclude its idle/completed P1s from the consecutive check.
+        # These are structural (expected) and not degradation signals.
+        _STRUCTURAL_SUFFIXES = ("_idle_before_shutdown", "_completed_before_shutdown")
+        protocol_progressing = (
+            snapshot.protocol_flags.get("kickoffs_sent", False)
+            and snapshot.protocol_flags.get("worker_revision_submitted", False)
+        )
+
         current_codes = {
             item.code for item in findings if item.severity.value == "P1"
         }
+        if protocol_progressing:
+            current_codes = {
+                code for code in current_codes
+                if not any(code.endswith(s) for s in _STRUCTURAL_SUFFIXES)
+            }
         if not current_codes:
             return False
 
@@ -110,6 +124,11 @@ class SchedulerClient:
             previous_codes = {
                 item.code for item in previous.findings if item.severity.value == "P1"
             }
+            if protocol_progressing:
+                previous_codes = {
+                    code for code in previous_codes
+                    if not any(code.endswith(s) for s in _STRUCTURAL_SUFFIXES)
+                }
             if current_codes & previous_codes:
                 consecutive += 1
                 if consecutive >= DEFAULTS.inbox_growth_consecutive_ticks:
