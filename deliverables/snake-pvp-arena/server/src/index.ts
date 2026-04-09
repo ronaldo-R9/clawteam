@@ -13,7 +13,7 @@ import { FileDatabase } from './storage.js';
 
 dotenv.config();
 
-const PORT = Number(process.env.PORT ?? 5000);
+const PORT = Number(process.env.PORT ?? 5001);
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN ?? 'http://localhost:5173';
 const JWT_SECRET = process.env.JWT_SECRET ?? 'snake-pvp-arena-dev-secret';
 const database = new FileDatabase(join(process.cwd(), 'data', 'db.json'));

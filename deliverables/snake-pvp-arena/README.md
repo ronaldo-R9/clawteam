@@ -43,7 +43,7 @@ npm run dev:client
 默认地址:
 
 - 前端: `http://localhost:5173`
-- 后端: `http://localhost:5000`
+- 后端: `http://localhost:5001`
 
 ## 人工烟测路径
 
