@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PatchPlan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "attempt_id",
+    "safe_to_apply",
+    "whitelist_only",
+    "patches"
+  ],
+  "properties": {
+    "attempt_id": {
+      "type": "string"
+    },
+    "safe_to_apply": {
+      "type": "boolean"
+    },
+    "whitelist_only": {
+      "type": "boolean"
+    },
+    "patches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "target_file",
+          "action",
+          "anchor",
+          "old_sha256",
+          "new_text"
+        ],
+        "properties": {
+          "target_file": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "anchor": {
+            "type": "string"
+          },
+          "old_sha256": {
+            "type": "string"
+          },
+          "new_text": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
+

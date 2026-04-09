@@ -1,0 +1,13 @@
+{
+  "name": "snake-pvp-arena",
+  "private": true,
+  "version": "0.1.0",
+  "description": "登录 + 双人在线对战贪吃蛇 + 比分展示",
+  "scripts": {
+    "install:all": "npm install --prefix server && npm install --prefix client",
+    "build": "npm run build --prefix server && npm run build --prefix client",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "start": "npm run start --prefix server"
+  }
+}

@@ -1,8 +1,0 @@
-node_modules
-dist
-.env
-database.sqlite
-client/node_modules
-client/dist
-server/node_modules
-server/dist

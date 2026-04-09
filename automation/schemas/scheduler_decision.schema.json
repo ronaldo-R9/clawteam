@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SchedulerDecisionRecord",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "attempt_id",
+    "tick_id",
+    "scheduler_model",
+    "scheduler_reasoning_effort",
+    "inputs",
+    "decision",
+    "confidence",
+    "reason",
+    "next_state"
+  ],
+  "properties": {
+    "attempt_id": {
+      "type": "string"
+    },
+    "tick_id": {
+      "type": "string"
+    },
+    "scheduler_model": {
+      "type": "string"
+    },
+    "scheduler_reasoning_effort": {
+      "type": "string"
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "continue_watch",
+        "stop_now",
+        "escalate_human"
+      ]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "reason": {
+      "type": "string"
+    },
+    "next_state": {
+      "type": "string"
+    }
+  }
+}

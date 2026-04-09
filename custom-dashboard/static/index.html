@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClawTeam Mission Control</title>
+    <meta name="description" content="ClawTeam custom dashboard with real-time agent logs, protocol stream, and team monitoring.">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg-color: #050508;
+            --surface-color: rgba(16, 16, 22, 0.75);
+            --surface-hover: rgba(28, 28, 38, 0.8);
+            --surface-active: rgba(40, 40, 55, 0.85);
+            --border-color: rgba(255, 255, 255, 0.06);
+            --border-hover: rgba(255, 255, 255, 0.12);
+            --border-focus: rgba(99, 102, 241, 0.5);
+            --text-primary: #f0f0f5;
+            --text-secondary: #8b8fa3;
+            --text-tertiary: #555870;
+            --accent-indigo: #6366f1;
+            --accent-indigo-glow: rgba(99, 102, 241, 0.25);
+            --accent-cyan: #22d3ee;
+            --accent-cyan-glow: rgba(34, 211, 238, 0.15);
+            --color-pending: #f59e0b;
+            --color-progress: #3b82f6;
+            --color-completed: #10b981;
+            --color-blocked: #ef4444;
+            --color-broadcast: #a855f7;
+            --color-log-bg: rgba(8, 8, 14, 0.95);
+            --color-log-text: #c8ccd8;
+            --radius-xl: 20px;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --radius-xs: 6px;
+            --blur: blur(24px);
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.25s ease;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Outfit', -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Ambient Background ─────────────────────────────── */
+        .ambient-bg {
+            position: fixed; inset: 0;
+            z-index: -1; pointer-events: none; overflow: hidden;
+        }
+        .orb {
+            position: absolute; border-radius: 50%;
+            filter: blur(160px); opacity: 0.12;
+            animation: orbit 30s infinite alternate ease-in-out;
+        }
+        .orb-1 { width: 600px; height: 600px; background: #6366f1; top: -150px; left: -100px; }
+        .orb-2 { width: 500px; height: 500px; background: #22d3ee; bottom: -200px; right: -80px; animation-delay: -12s; }
+        .orb-3 { width: 400px; height: 400px; background: #a855f7; top: 40%; left: 60%; animation-delay: -20s; opacity: 0.08; }
+        @keyframes orbit {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(100px, 60px) scale(1.15); }
+        }
+
+        /* ── Glass Panel Base ───────────────────────────────── */
+        .glass {
+            background: var(--surface-color);
+            backdrop-filter: var(--blur);
+            -webkit-backdrop-filter: var(--blur);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+            transition: border-color var(--transition-normal);
+        }
+        .glass:hover { border-color: var(--border-hover); }
+
+        /* ── Layout ─────────────────────────────────────────── */
+        .app-shell {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* ── Sidebar ────────────────────────────────────────── */
+        .sidebar {
+            width: 260px;
+            min-width: 260px;
+            padding: 28px 20px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+            background: rgba(8, 8, 14, 0.65);
+            backdrop-filter: var(--blur);
+            z-index: 10;
+        }
+        .brand {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 22px; font-weight: 700; letter-spacing: -0.02em;
+            margin-bottom: 40px;
+            background: linear-gradient(135deg, #f0f0f5, #818cf8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .brand svg { flex-shrink: 0; }
+
+        .sidebar-section {
+            margin-bottom: 28px;
+        }
+        .sidebar-label {
+            font-size: 11px; color: var(--text-tertiary);
+            text-transform: uppercase; letter-spacing: 0.12em;
+            font-weight: 600; margin-bottom: 10px;
+        }
+
+        .custom-select {
+            width: 100%; padding: 12px 14px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: inherit; font-size: 14px; font-weight: 500;
+            cursor: pointer; outline: none;
+            transition: all var(--transition-fast);
+        }
+        .custom-select:hover { border-color: var(--border-hover); background: rgba(255,255,255,0.06); }
+        .custom-select:focus { border-color: var(--border-focus); box-shadow: 0 0 0 2px var(--accent-indigo-glow); }
+        .custom-select option { background: #111118; color: #f0f0f5; }
+
+        .conn-status {
+            display: flex; align-items: center; gap: 10px;
+            padding: 14px; margin-top: auto;
+            background: rgba(0,0,0,0.25); border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+        }
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--color-blocked);
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+        .status-dot.live {
+            background: var(--color-completed);
+            box-shadow: 0 0 10px var(--color-completed);
+        }
+        .conn-label { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+
+        /* ── Main Content ───────────────────────────────────── */
+        .main-content {
+            flex: 1;
+            padding: 32px 36px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* ── Header ─────────────────────────────────────────── */
+        .page-header {
+            display: flex; justify-content: space-between; align-items: flex-start;
+        }
+        .page-title {
+            font-size: 36px; font-weight: 700; letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #f0f0f5, #a5b4fc);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .page-meta { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+
+        /* ── Stats Bar ──────────────────────────────────────── */
+        .stats-bar {
+            display: flex; gap: 16px; flex-wrap: wrap;
+        }
+        .stat-chip {
+            padding: 16px 24px;
+            display: flex; flex-direction: column; align-items: center;
+            min-width: 140px; flex: 1;
+            position: relative; overflow: hidden;
+            cursor: default;
+        }
+        .stat-chip:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,0.4); }
+        .stat-chip::after {
+            content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+        }
+        .stat-chip.pending::after { background: var(--color-pending); }
+        .stat-chip.progress::after { background: var(--color-progress); }
+        .stat-chip.completed::after { background: var(--color-completed); }
+        .stat-chip.blocked::after { background: var(--color-blocked); }
+        .stat-value {
+            font-size: 36px; font-weight: 700; line-height: 1; margin-bottom: 8px;
+        }
+        .stat-label {
+            font-size: 11px; color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;
+        }
+
+        /* ── Agent Registry (Horizontal) ────────────────────── */
+        .agent-registry {
+            display: flex; gap: 14px;
+            overflow-x: auto; padding-bottom: 4px;
+        }
+        .agent-registry::-webkit-scrollbar { height: 4px; }
+        .agent-registry::-webkit-scrollbar-track { background: transparent; }
+        .agent-registry::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+        .agent-card {
+            flex-shrink: 0;
+            min-width: 200px;
+            padding: 18px 20px;
+            display: flex; flex-direction: column; gap: 10px;
+            transition: all var(--transition-normal);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        .agent-card::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, var(--accent-indigo), var(--accent-cyan));
+            opacity: 0; transition: opacity var(--transition-normal);
+        }
+        .agent-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.15); }
+        .agent-card:hover::before { opacity: 1; }
+        .agent-card.selected {
+            border-color: var(--accent-indigo);
+            box-shadow: 0 0 20px var(--accent-indigo-glow);
+        }
+        .agent-card.selected::before { opacity: 1; }
+        .agent-name { font-size: 16px; font-weight: 600; }
+        .agent-type {
+            font-size: 12px; color: var(--accent-cyan);
+            background: var(--accent-cyan-glow);
+            padding: 3px 8px; border-radius: 4px;
+            display: inline-block; width: fit-content;
+        }
+        .agent-inbox-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 12px; color: var(--text-secondary);
+            padding: 4px 10px; border-radius: 10px;
+            background: rgba(255,255,255,0.04);
+            width: fit-content;
+        }
+        .agent-inbox-badge.has-msgs {
+            background: rgba(239,68,68,0.12); color: var(--color-blocked);
+        }
+
+        /* ── Dual Pane Layout ───────────────────────────────── */
+        .dual-pane {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            flex: 1;
+            min-height: 400px;
+        }
+        @media (max-width: 1400px) {
+            .dual-pane { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            display: flex; flex-direction: column;
+            min-height: 0;
+        }
+        .panel-header {
+            padding: 18px 22px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+            flex-shrink: 0;
+        }
+        .panel-title { font-size: 16px; font-weight: 600; }
+        .panel-badge {
+            background: rgba(255,255,255,0.08);
+            padding: 4px 12px; border-radius: 16px;
+            font-size: 12px; font-weight: 600; color: var(--text-secondary);
+        }
+        .panel-body {
+            flex: 1; overflow-y: auto; padding: 18px 22px;
+            min-height: 0;
+        }
+        .panel-body::-webkit-scrollbar { width: 4px; }
+        .panel-body::-webkit-scrollbar-track { background: transparent; }
+        .panel-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+
+        /* ── Protocol Stream (Messages) ─────────────────────── */
+        .msg-list { display: flex; flex-direction: column; gap: 14px; }
+        .msg-item {
+            padding: 16px;
+            border-radius: var(--radius-md);
+            background: rgba(0,0,0,0.35);
+            border: 1px solid var(--border-color);
+            animation: slideIn 0.3s ease forwards;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-8px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .msg-meta {
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+            font-size: 13px; margin-bottom: 10px;
+        }
+        .msg-tag {
+            padding: 3px 8px; border-radius: 4px;
+            font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .msg-tag-message { background: rgba(59,130,246,0.15); color: var(--color-progress); }
+        .msg-tag-broadcast { background: rgba(168,85,247,0.15); color: var(--color-broadcast); }
+        .msg-tag-event { background: rgba(255,255,255,0.07); color: var(--text-secondary); }
+        .msg-time { color: var(--text-tertiary); margin-left: auto; font-size: 12px; }
+        .msg-flow { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+        .msg-party { color: var(--text-primary); font-weight: 500; font-size: 13px; }
+        .msg-arrow { color: var(--text-tertiary); font-size: 12px; }
+        .msg-content {
+            font-size: 13px; color: var(--text-secondary); line-height: 1.6;
+            background: rgba(255,255,255,0.02); padding: 12px;
+            border-radius: var(--radius-xs);
+            white-space: pre-wrap; word-break: break-word;
+            font-family: 'JetBrains Mono', monospace; font-weight: 300;
+            border: 1px solid rgba(255,255,255,0.02);
+            max-height: 200px; overflow-y: auto;
+        }
+
+        /* ── Agent Logs Panel ───────────────────────────────── */
+        .log-controls {
+            display: flex; align-items: center; gap: 8px;
+            flex-wrap: wrap;
+        }
+        .log-tab {
+            padding: 5px 14px;
+            border-radius: 14px;
+            font-size: 12px; font-weight: 600;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            font-family: inherit;
+        }
+        .log-tab:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+        .log-tab.active {
+            background: var(--accent-indigo);
+            border-color: var(--accent-indigo);
+            color: white;
+            box-shadow: 0 0 12px var(--accent-indigo-glow);
+        }
+
+        .log-viewport {
+            flex: 1; display: flex; gap: 12px;
+            overflow: hidden; min-height: 0;
+            padding: 18px 22px;
+        }
+
+        .log-column {
+            flex: 1; min-width: 0;
+            display: flex; flex-direction: column;
+            background: var(--color-log-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+        }
+        .log-column-header {
+            padding: 10px 14px;
+            font-size: 12px; font-weight: 600;
+            color: var(--accent-cyan);
+            background: rgba(0,0,0,0.3);
+            border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; gap: 8px;
+            flex-shrink: 0;
+        }
+        .log-column-header .dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--color-completed);
+            box-shadow: 0 0 6px var(--color-completed);
+        }
+        .log-output {
+            flex: 1; overflow-y: auto; overflow-x: hidden;
+            padding: 12px 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11.5px; font-weight: 300;
+            line-height: 1.65;
+            color: var(--color-log-text);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .log-output::-webkit-scrollbar { width: 4px; }
+        .log-output::-webkit-scrollbar-track { background: transparent; }
+        .log-output::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+
+        .log-output .log-line-system { color: #6366f1; }
+        .log-output .log-line-error { color: #ef4444; }
+        .log-output .log-line-success { color: #10b981; }
+
+        /* ── Empty State ────────────────────────────────────── */
+        .empty-state {
+            text-align: center; padding: 48px 24px; color: var(--text-tertiary);
+        }
+        .empty-title {
+            font-size: 24px; font-weight: 600; color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        /* ── Scrollbar Global ───────────────────────────────── */
+        .main-content::-webkit-scrollbar { width: 6px; }
+        .main-content::-webkit-scrollbar-track { background: transparent; }
+        .main-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 4px; }
+
+        /* ── Utility ────────────────────────────────────────── */
+        .hidden { display: none !important; }
+
+        /* ── Responsive ─────────────────────────────────────── */
+        @media (max-width: 900px) {
+            .sidebar { width: 200px; min-width: 200px; padding: 20px 14px; }
+            .main-content { padding: 20px; }
+            .stats-bar { gap: 10px; }
+            .stat-chip { min-width: 100px; padding: 12px 16px; }
+            .stat-value { font-size: 28px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="ambient-bg">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+</div>
+
+<div class="app-shell">
+    <!-- ── Sidebar ────────────────────────── -->
+    <aside class="sidebar">
+        <div class="brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                <path d="M2 17l10 5 10-5"></path>
+                <path d="M2 12l10 5 10-5"></path>
+            </svg>
+            Mission Control
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-label">Active Swarm</div>
+            <select id="team-select" class="custom-select">
+                <option value="">Initializing...</option>
+            </select>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-label">Log View Mode</div>
+            <select id="log-mode-select" class="custom-select">
+                <option value="all">All Agents (Side by Side)</option>
+                <option value="single">Single Agent</option>
+            </select>
+        </div>
+
+        <div class="sidebar-section hidden" id="single-agent-section">
+            <div class="sidebar-label">Select Agent</div>
+            <select id="agent-select" class="custom-select">
+                <option value="">No agents found</option>
+            </select>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-label">Auto-Scroll Logs</div>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text-secondary);">
+                <input type="checkbox" id="auto-scroll" checked style="accent-color:var(--accent-indigo);width:16px;height:16px;">
+                Enabled
+            </label>
+        </div>
+
+        <div class="conn-status">
+            <div class="status-dot" id="status-dot"></div>
+            <div class="conn-label" id="status-text">Disconnected</div>
+        </div>
+    </aside>
+
+    <!-- ── Main Content ──────────────────── -->
+    <main class="main-content" id="main-view">
+        <div class="empty-state" style="margin-top:15vh;">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5" style="margin-bottom:20px;opacity:0.5;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <div class="empty-title">ClawTeam Mission Control</div>
+            <p style="font-size:15px;color:var(--text-secondary);">Select a team to begin real-time monitoring and log inspection.</p>
+        </div>
+    </main>
+</div>
+
+<script>
+// ── Global State ──────────────────────────────────────────────
+const teamSelect = document.getElementById('team-select');
+const logModeSelect = document.getElementById('log-mode-select');
+const agentSelect = document.getElementById('agent-select');
+const singleAgentSection = document.getElementById('single-agent-section');
+const statusDot = document.getElementById('status-dot');
+const statusText = document.getElementById('status-text');
+const mainView = document.getElementById('main-view');
+const autoScrollCheckbox = document.getElementById('auto-scroll');
+
+let currentTeam = '';
+let currentEventSource = null;
+let currentLogSource = null;
+let lastDataStr = '';
+let lastLogStr = '';
+let knownAgents = [];
+
+// ── Escape HTML ──────────────────────────────────────────────
+function esc(v) {
+    return String(v ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// ── Init ─────────────────────────────────────────────────────
+async function init() {
+    try {
+        const res = await fetch('/api/overview');
+        const teams = await res.json();
+        teamSelect.replaceChildren();
+        const df = document.createElement('option');
+        df.value = ''; df.textContent = 'Select Team';
+        teamSelect.appendChild(df);
+        teams.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.name || '';
+            opt.textContent = `${t.name}${t.description ? ` — ${t.description}` : ''}`;
+            teamSelect.appendChild(opt);
+        });
+        if (teams.length > 0) {
+            teamSelect.value = teams[0].name;
+            switchTeam(teams[0].name);
+        }
+    } catch (e) {
+        console.error('Init failed', e);
+        teamSelect.innerHTML = '<option value="">Error loading teams</option>';
+    }
+}
+
+teamSelect.addEventListener('change', e => switchTeam(e.target.value));
+logModeSelect.addEventListener('change', () => {
+    singleAgentSection.classList.toggle('hidden', logModeSelect.value !== 'single');
+    reconnectLogStream();
+});
+agentSelect.addEventListener('change', () => reconnectLogStream());
+
+// ── Team Switch ──────────────────────────────────────────────
+function switchTeam(name) {
+    if (currentEventSource) { currentEventSource.close(); currentEventSource = null; }
+    if (currentLogSource) { currentLogSource.close(); currentLogSource = null; }
+    currentTeam = name;
+    lastDataStr = '';
+    lastLogStr = '';
+
+    if (!name) {
+        setStatus(false);
+        mainView.innerHTML = `
+            <div class="empty-state" style="margin-top:15vh;">
+                <div class="empty-title">Mission Control</div>
+                <p style="font-size:15px;color:var(--text-secondary);">Select a team to begin.</p>
+            </div>`;
+        return;
+    }
+
+    setStatus(false);
+    renderSkeleton();
+
+    // Team data SSE
+    currentEventSource = new EventSource('/api/events/' + encodeURIComponent(name));
+    currentEventSource.onmessage = e => {
+        setStatus(true);
+        try {
+            const data = JSON.parse(e.data);
+            if (!data.error) updateTeamData(data);
+        } catch (err) { console.error('Parse error', err); }
+    };
+    currentEventSource.onerror = () => setStatus(false);
+
+    // Log SSE
+    connectLogStream(name);
+}
+
+function connectLogStream(team) {
+    if (currentLogSource) { currentLogSource.close(); currentLogSource = null; }
+    const mode = logModeSelect.value;
+    const agent = mode === 'single' ? (agentSelect.value || '') : 'all';
+    const url = `/api/log-stream/${encodeURIComponent(team)}?agent=${encodeURIComponent(agent)}`;
+    currentLogSource = new EventSource(url);
+    currentLogSource.onmessage = e => {
+        try {
+            const data = JSON.parse(e.data);
+            updateLogData(data);
+        } catch (err) { console.error('Log parse error', err); }
+    };
+}
+
+function reconnectLogStream() {
+    if (currentTeam) connectLogStream(currentTeam);
+}
+
+function setStatus(live) {
+    statusDot.className = live ? 'status-dot live' : 'status-dot';
+    statusText.textContent = live ? 'Receiving Live Data' : 'Connecting...';
+}
+
+// ── Render Skeleton ──────────────────────────────────────────
+function renderSkeleton() {
+    mainView.innerHTML = `
+        <div class="page-header">
+            <div>
+                <div class="page-title" id="ui-title">Syncing Swarm...</div>
+                <div class="page-meta" id="ui-meta">Establishing connection...</div>
+            </div>
+        </div>
+
+        <div class="stats-bar" id="ui-stats"></div>
+
+        <!-- Agent Registry: horizontal -->
+        <div style="overflow:hidden;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <span style="font-size:14px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.1em;">Agent Registry</span>
+                <span id="ui-agent-count" style="font-size:12px;color:var(--text-tertiary);">0 active</span>
+            </div>
+            <div class="agent-registry" id="ui-agents"></div>
+        </div>
+
+        <!-- Dual Pane: Protocol Stream + Logs -->
+        <div class="dual-pane">
+            <!-- Protocol Stream -->
+            <div class="panel glass">
+                <div class="panel-header">
+                    <span class="panel-title">Active Protocol Stream</span>
+                    <span class="panel-badge" id="ui-msg-count">0</span>
+                </div>
+                <div class="panel-body" id="ui-messages"></div>
+            </div>
+
+            <!-- Agent Logs -->
+            <div class="panel glass" style="padding:0;">
+                <div class="panel-header">
+                    <span class="panel-title">Agent Terminal Logs</span>
+                    <div class="log-controls" id="ui-log-tabs"></div>
+                </div>
+                <div class="log-viewport" id="ui-log-viewport">
+                    <div style="text-align:center;color:var(--text-tertiary);padding:40px;width:100%;">
+                        Waiting for agent logs...
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ── Update Team Data ─────────────────────────────────────────
+function updateTeamData(data) {
+    const s = JSON.stringify(data);
+    if (s === lastDataStr) return;
+    lastDataStr = s;
+
+    const { team, members = [], tasks = {}, taskSummary = {}, messages = [] } = data;
+
+    // Header
+    const titleEl = document.getElementById('ui-title');
+    const metaEl = document.getElementById('ui-meta');
+    if (titleEl) titleEl.textContent = team.name;
+    if (metaEl) metaEl.textContent = `Led by ${team.leaderName || 'unknown'} · ${members.length} agents · ${team.description || ''}`;
+
+    // Stats
+    const statsEl = document.getElementById('ui-stats');
+    if (statsEl) {
+        statsEl.innerHTML = `
+            <div class="stat-chip glass pending">
+                <div class="stat-value" style="color:var(--color-pending)">${taskSummary.pending || 0}</div>
+                <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-chip glass progress">
+                <div class="stat-value" style="color:var(--color-progress)">${taskSummary.in_progress || 0}</div>
+                <div class="stat-label">In Progress</div>
+            </div>
+            <div class="stat-chip glass completed">
+                <div class="stat-value" style="color:var(--color-completed)">${taskSummary.completed || 0}</div>
+                <div class="stat-label">Completed</div>
+            </div>
+            <div class="stat-chip glass blocked">
+                <div class="stat-value" style="color:var(--color-blocked)">${taskSummary.blocked || 0}</div>
+                <div class="stat-label">Blocked</div>
+            </div>
+        `;
+    }
+
+    // Agent Registry (horizontal)
+    const agentCountEl = document.getElementById('ui-agent-count');
+    const agentsEl = document.getElementById('ui-agents');
+    if (agentCountEl) agentCountEl.textContent = `${members.length} active`;
+    if (agentsEl) {
+        agentsEl.innerHTML = members.map(m => `
+            <div class="agent-card glass" data-agent="${esc(m.name)}" onclick="selectAgent('${esc(m.name)}')">
+                <div class="agent-name">${esc(m.name)}</div>
+                <div class="agent-type">${esc(m.agentType || 'agent')}</div>
+                <div class="agent-inbox-badge ${m.inboxCount > 0 ? 'has-msgs' : ''}">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                        <polyline points="22,6 12,13 2,6"></polyline>
+                    </svg>
+                    ${m.inboxCount} pending
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Update agent selector
+    const newAgents = members.map(m => m.name);
+    if (JSON.stringify(newAgents) !== JSON.stringify(knownAgents)) {
+        knownAgents = newAgents;
+        agentSelect.replaceChildren();
+        if (newAgents.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = ''; opt.textContent = 'No agents';
+            agentSelect.appendChild(opt);
+        } else {
+            newAgents.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name; opt.textContent = name;
+                agentSelect.appendChild(opt);
+            });
+        }
+    }
+
+    // Protocol Stream
+    const sorted = [...messages].sort((a,b) => (b.timestamp||'').localeCompare(a.timestamp||''));
+    const msgCountEl = document.getElementById('ui-msg-count');
+    if (msgCountEl) msgCountEl.textContent = `${sorted.length} events`;
+
+    const msgsEl = document.getElementById('ui-messages');
+    if (msgsEl) {
+        if (sorted.length === 0) {
+            msgsEl.innerHTML = '<div class="empty-state" style="padding:32px;">No protocol activity yet.</div>';
+        } else {
+            msgsEl.innerHTML = `<div class="msg-list">${sorted.map((m, i) => {
+                let tagClass = 'msg-tag-message';
+                if (m.isBroadcast) tagClass = 'msg-tag-broadcast';
+                if (m.type && m.type !== 'message') tagClass = 'msg-tag-event';
+                const ts = m.timestamp ? m.timestamp.slice(11,19) : '';
+                return `
+                <div class="msg-item" style="animation-delay:${Math.min(i*0.015,0.4)}s">
+                    <div class="msg-meta">
+                        <span class="msg-tag ${tagClass}">${esc(m.type || 'MSG')}</span>
+                        <div class="msg-flow">
+                            <span class="msg-party">${esc(m.fromLabel || m.from || 'SYS')}</span>
+                            <span class="msg-arrow">${m.isBroadcast ? '↠' : '→'}</span>
+                            <span class="msg-party">${esc(m.toLabel || m.to || 'ALL')}</span>
+                        </div>
+                        <span class="msg-time">${ts}</span>
+                    </div>
+                    <div class="msg-content">${esc(m.content || '')}</div>
+                </div>`;
+            }).join('')}</div>`;
+        }
+    }
+}
+
+// ── Update Log Data ──────────────────────────────────────────
+function updateLogData(data) {
+    const s = JSON.stringify(data);
+    if (s === lastLogStr) return;
+    lastLogStr = s;
+
+    const { agents = [], logs = {}, filter } = data;
+    const viewport = document.getElementById('ui-log-viewport');
+    const tabsEl = document.getElementById('ui-log-tabs');
+    if (!viewport) return;
+
+    // Render tab buttons
+    if (tabsEl) {
+        const currentFilter = filter || 'all';
+        tabsEl.innerHTML = `
+            <button class="log-tab ${currentFilter === 'all' ? 'active' : ''}" onclick="setLogFilter('all')">All</button>
+            ${agents.map(a => `
+                <button class="log-tab ${currentFilter === a ? 'active' : ''}" onclick="setLogFilter('${esc(a)}')">${esc(a)}</button>
+            `).join('')}
+        `;
+    }
+
+    // Determine which agents to show
+    const agentsToShow = Object.keys(logs);
+    if (agentsToShow.length === 0) {
+        viewport.innerHTML = '<div style="text-align:center;color:var(--text-tertiary);padding:40px;width:100%;">No agent logs available. Is the tmux session running?</div>';
+        return;
+    }
+
+    // Build log columns
+    viewport.innerHTML = agentsToShow.map(agent => {
+        const logText = logs[agent] || '';
+        const colorized = colorizeLog(logText);
+        return `
+            <div class="log-column" id="log-col-${esc(agent)}">
+                <div class="log-column-header">
+                    <span class="dot"></span>
+                    ${esc(agent)}
+                </div>
+                <div class="log-output" id="log-out-${esc(agent)}">${colorized}</div>
+            </div>
+        `;
+    }).join('');
+
+    // Auto-scroll
+    if (autoScrollCheckbox.checked) {
+        agentsToShow.forEach(agent => {
+            const el = document.getElementById(`log-out-${agent}`);
+            if (el) el.scrollTop = el.scrollHeight;
+        });
+    }
+}
+
+// ── Colorize Log Output ──────────────────────────────────────
+function colorizeLog(text) {
+    return esc(text)
+        .split('\n')
+        .map(line => {
+            if (/error|fail|exception|panic/i.test(line)) {
+                return `<span class="log-line-error">${line}</span>`;
+            }
+            if (/success|completed|pass|approved/i.test(line)) {
+                return `<span class="log-line-success">${line}</span>`;
+            }
+            if (/\[system\]|\[clawteam\]|──|━━/i.test(line)) {
+                return `<span class="log-line-system">${line}</span>`;
+            }
+            return line;
+        })
+        .join('\n');
+}
+
+// ── Agent Selection ──────────────────────────────────────────
+function selectAgent(name) {
+    logModeSelect.value = 'single';
+    singleAgentSection.classList.remove('hidden');
+    agentSelect.value = name;
+
+    // Highlight in registry
+    document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('selected'));
+    const card = document.querySelector(`.agent-card[data-agent="${name}"]`);
+    if (card) card.classList.add('selected');
+
+    reconnectLogStream();
+}
+
+function setLogFilter(agent) {
+    if (agent === 'all') {
+        logModeSelect.value = 'all';
+        singleAgentSection.classList.add('hidden');
+    } else {
+        logModeSelect.value = 'single';
+        singleAgentSection.classList.remove('hidden');
+        agentSelect.value = agent;
+    }
+    // Highlight agent card
+    document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('selected'));
+    if (agent !== 'all') {
+        const card = document.querySelector(`.agent-card[data-agent="${agent}"]`);
+        if (card) card.classList.add('selected');
+    }
+    reconnectLogStream();
+}
+
+// ── Boot ─────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

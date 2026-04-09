@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AttemptManifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "attempt_id",
+    "team_name",
+    "repo_path",
+    "template_name",
+    "template_hash",
+    "team_model",
+    "team_reasoning_effort",
+    "scheduler_model",
+    "scheduler_reasoning_effort",
+    "diagnosis_model",
+    "diagnosis_reasoning_effort",
+    "inner_max_rounds",
+    "outer_max_attempts",
+    "started_at",
+    "stopped_at",
+    "status",
+    "failure_reason_code"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string"
+    },
+    "attempt_id": {
+      "type": "string",
+      "pattern": "^attempt-[0-9]{3}$"
+    },
+    "team_name": {
+      "type": "string"
+    },
+    "repo_path": {
+      "type": "string"
+    },
+    "template_name": {
+      "type": "string"
+    },
+    "template_hash": {
+      "type": "string"
+    },
+    "team_model": {
+      "type": "string"
+    },
+    "team_reasoning_effort": {
+      "type": "string"
+    },
+    "scheduler_model": {
+      "type": "string"
+    },
+    "scheduler_reasoning_effort": {
+      "type": "string"
+    },
+    "diagnosis_model": {
+      "type": "string"
+    },
+    "diagnosis_reasoning_effort": {
+      "type": "string"
+    },
+    "inner_max_rounds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "outer_max_attempts": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "started_at": {
+      "type": "string"
+    },
+    "stopped_at": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "failure_reason_code": {
+      "type": "string"
+    }
+  }
+}
+
