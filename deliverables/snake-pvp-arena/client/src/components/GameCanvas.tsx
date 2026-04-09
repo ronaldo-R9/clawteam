@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 interface Cell {
   x: number;
@@ -267,37 +267,17 @@ export default function GameCanvas({ state }: Props) {
     };
   }, [state]);
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      const containerWidth = entry.contentRect.width;
-      const canvasWidth = (state?.grid.width ?? 24) * CELL_PX;
-      setScale(containerWidth < canvasWidth ? containerWidth / canvasWidth : 1);
-    });
-
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, [state?.grid.width]);
-
   return (
-    <div ref={containerRef} className="w-full max-w-[480px] mx-auto px-2">
-      <canvas
-        ref={canvasRef}
-        className="block mx-auto rounded-lg border border-slate-700"
-        style={{
-          imageRendering: 'pixelated',
-          transform: scale < 1 ? `scale(${scale})` : undefined,
-          transformOrigin: 'top center'
-        }}
-      />
-    </div>
+    <canvas
+      ref={canvasRef}
+      className="block mx-auto rounded-lg border border-slate-700"
+      style={{
+        width: '100%',
+        height: 'auto',
+        maxWidth: '480px',
+        imageRendering: 'pixelated'
+      }}
+    />
   );
 }
 

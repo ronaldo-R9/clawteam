@@ -87,6 +87,7 @@ export interface RoomSnapshot {
   players: RoomPlayerSnapshot[];
   snakes: SnakeSnapshot[];
   food: Cell | null;
+  speed: number;
   winner: {
     userId: string;
     username: string;

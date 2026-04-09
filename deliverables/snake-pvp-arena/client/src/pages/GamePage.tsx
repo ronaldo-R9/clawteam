@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import GameCanvas from '../components/GameCanvas';
 import { useAuth } from '../contexts/AuthContext';
+import { useSfx } from '../hooks/useSfx';
 import { useSocket } from '../hooks/useSocket';
 
 interface RoomSnapshot {
@@ -21,6 +22,7 @@ interface RoomSnapshot {
     alive: boolean;
   }>;
   food: { x: number; y: number } | null;
+  speed: number;
   winner: { userId: string; username: string } | null;
   reason: string | null;
 }
@@ -34,6 +36,8 @@ export default function GamePage() {
   const [joined, setJoined] = useState(false);
   const [rematchSent, setRematchSent] = useState(false);
   const [rematchPending, setRematchPending] = useState<string | null>(null);
+  const sfx = useSfx();
+  const prevStateRef = useRef<RoomSnapshot | null>(null);
 
   // Join or reconnect to room
   useEffect(() => {
@@ -58,6 +62,39 @@ export default function GamePage() {
           setRematchSent(false);
           setRematchPending(null);
         }
+
+        // Sound effects based on state transitions
+        if (prev) {
+          // Countdown tick
+          if (snapshot.status === 'countdown' && snapshot.countdown !== null &&
+              snapshot.countdown !== prev.countdown) {
+            sfx.countdownTick();
+          }
+          // Game start
+          if (prev.status === 'countdown' && snapshot.status === 'playing') {
+            sfx.gameStart();
+          }
+          // Food eaten (total score increased)
+          if (snapshot.status === 'playing' && prev.status === 'playing') {
+            const prevTotal = prev.snakes.reduce((s, sn) => s + sn.score, 0);
+            const curTotal = snapshot.snakes.reduce((s, sn) => s + sn.score, 0);
+            if (curTotal > prevTotal) {
+              sfx.eatFood();
+            }
+          }
+          // Death
+          if (snapshot.status === 'finished' && prev.status === 'playing') {
+            const isWinner = snapshot.winner?.userId === user?.id;
+            if (snapshot.winner) {
+              if (isWinner) sfx.win();
+              else sfx.lose();
+            } else {
+              sfx.death();
+            }
+          }
+        }
+
+        prevStateRef.current = snapshot;
         return snapshot;
       });
     });
@@ -150,7 +187,16 @@ export default function GamePage() {
         <span className="text-sm text-slate-500">
           {state?.status === 'waiting' && '等待对手...'}
           {state?.status === 'countdown' && '即将开始'}
-          {state?.status === 'playing' && `Tick ${state.tick}`}
+          {state?.status === 'playing' && (
+            <>
+              Tick {state.tick}
+              {state.speed < 150 && (
+                <span className="ml-2 text-orange-400">
+                  {state.speed <= 100 ? '⚡⚡' : '⚡'}
+                </span>
+              )}
+            </>
+          )}
           {state?.status === 'finished' && '已结束'}
         </span>
       </header>

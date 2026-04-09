@@ -38,6 +38,8 @@ interface RoomRuntime {
   } | null;
   reason: string | null;
   interval: NodeJS.Timeout | null;
+  cleanupTimer: NodeJS.Timeout | null;
+  totalFoodEaten: number;
   rematchRequests: Set<string>;
 }
 
@@ -114,6 +116,8 @@ export class SnakeArenaService {
       winner: null,
       reason: null,
       interval: null,
+      cleanupTimer: null,
+      totalFoodEaten: 0,
       rematchRequests: new Set()
     };
 
@@ -307,10 +311,17 @@ export class SnakeArenaService {
   }
 
   private startCountdown(room: RoomRuntime): void {
+    // Cancel any pending cleanup timer from a previous game
+    if (room.cleanupTimer) {
+      clearTimeout(room.cleanupTimer);
+      room.cleanupTimer = null;
+    }
+
     room.status = 'countdown';
     room.countdown = 3;
     room.reason = null;
     room.winner = null;
+    room.totalFoodEaten = 0;
     room.snakes = room.players.map((player, index) => ({
       userId: player.userId,
       username: player.username,
@@ -343,8 +354,23 @@ export class SnakeArenaService {
     room.status = 'playing';
     room.tick = 0;
     room.countdown = null;
-    room.interval = setInterval(() => this.advanceRoom(room.roomCode), TICK_MS);
+    this.scheduleNextTick(room);
     this.emitUpdate(room);
+  }
+
+  private currentTickMs(room: RoomRuntime): number {
+    const speedUps = Math.floor(room.totalFoodEaten / 5);
+    return Math.max(80, TICK_MS - speedUps * 10);
+  }
+
+  private scheduleNextTick(room: RoomRuntime): void {
+    room.interval = setTimeout(() => {
+      this.advanceRoom(room.roomCode);
+      const updatedRoom = this.rooms.get(room.roomCode);
+      if (updatedRoom && updatedRoom.status === 'playing') {
+        this.scheduleNextTick(updatedRoom);
+      }
+    }, this.currentTickMs(room));
   }
 
   private advanceRoom(roomCode: string): void {
@@ -432,6 +458,7 @@ export class SnakeArenaService {
         updatedBody.pop();
       } else {
         move.snake.score += 10;
+        room.totalFoodEaten += 1;
         ateFood = true;
       }
       move.snake.body = updatedBody;
@@ -450,7 +477,7 @@ export class SnakeArenaService {
     }
 
     if (room.interval) {
-      clearInterval(room.interval);
+      clearTimeout(room.interval);
       room.interval = null;
     }
 
@@ -506,8 +533,8 @@ export class SnakeArenaService {
 
     this.emitUpdate(room);
 
-    // Auto-cleanup finished rooms after 30 seconds
-    setTimeout(() => this.destroyRoom(room.roomCode), 30_000);
+    // Auto-cleanup finished rooms after 30 seconds (stored so rematch can cancel)
+    room.cleanupTimer = setTimeout(() => this.destroyRoom(room.roomCode), 30_000);
   }
 
   private emitUpdate(room: RoomRuntime): void {
@@ -541,6 +568,7 @@ export class SnakeArenaService {
         alive: snake.alive
       })),
       food: room.food,
+      speed: this.currentTickMs(room),
       winner: room.winner,
       reason: room.reason
     };
@@ -565,19 +593,27 @@ export class SnakeArenaService {
 
   private destroyRoom(roomCode: string): void {
     const room = this.rooms.get(roomCode);
+    if (!room) return;
 
-    if (room?.interval) {
-      clearInterval(room.interval);
+    // Only destroy finished or waiting rooms; don't destroy active games
+    if (room.status === 'playing' || room.status === 'countdown') {
+      return;
     }
 
-    if (room?.countdownTimer) {
+    if (room.interval) {
+      clearTimeout(room.interval);
+    }
+
+    if (room.countdownTimer) {
       clearInterval(room.countdownTimer);
     }
 
-    if (room) {
-      for (const player of room.players) {
-        this.playerRooms.delete(player.userId);
-      }
+    if (room.cleanupTimer) {
+      clearTimeout(room.cleanupTimer);
+    }
+
+    for (const player of room.players) {
+      this.playerRooms.delete(player.userId);
     }
 
     this.rooms.delete(roomCode);
