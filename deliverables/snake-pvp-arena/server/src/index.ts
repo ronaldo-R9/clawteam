@@ -7,6 +7,7 @@ import express, { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { Server, Socket } from 'socket.io';
 import { SnakeArenaService } from './game.js';
+import { MatchmakingQueue } from './matchmaking.js';
 import { AuthenticatedUser, Direction } from './models.js';
 import { FileDatabase } from './storage.js';
 
@@ -27,6 +28,14 @@ const io = new Server(httpServer, {
 });
 
 const arena = new SnakeArenaService(io, database);
+const matchmaking = new MatchmakingQueue(io, arena);
+
+// Track online users in lobby
+const lobbyUsers = new Set<string>();
+
+function broadcastOnlineCount() {
+  io.emit('online:count', lobbyUsers.size);
+}
 
 app.use(
   cors({
@@ -115,6 +124,13 @@ app.get('/api/stats/me', authenticateHttp, (request, response) => {
   response.json(profile);
 });
 
+app.get('/api/leaderboard', (request, response) => {
+  const offset = Math.max(0, Number(request.query.offset) || 0);
+  const limit = Math.min(100, Math.max(1, Number(request.query.limit) || 20));
+  const users = database.getLeaderboard(offset, limit);
+  response.json({ users });
+});
+
 io.use((socket, next) => {
   try {
     const token = String(socket.handshake.auth.token ?? '');
@@ -139,6 +155,24 @@ io.use((socket, next) => {
 
 io.on('connection', (socket) => {
   const user = socket.data.user as AuthenticatedUser;
+
+  socket.on('lobby:join', () => {
+    lobbyUsers.add(user.userId);
+    broadcastOnlineCount();
+  });
+
+  socket.on('lobby:leave', () => {
+    lobbyUsers.delete(user.userId);
+    broadcastOnlineCount();
+  });
+
+  socket.on('match:join', () => {
+    matchmaking.addToQueue(user, socket);
+  });
+
+  socket.on('match:cancel', () => {
+    matchmaking.removeFromQueue(user.userId);
+  });
 
   socket.on('room:create', (ack?: (payload: unknown) => void) => {
     const result = arena.createRoom(user, socket);
@@ -167,6 +201,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    lobbyUsers.delete(user.userId);
+    broadcastOnlineCount();
+    matchmaking.removeFromQueue(user.userId);
     arena.handleDisconnect(user, socket.id);
   });
 });

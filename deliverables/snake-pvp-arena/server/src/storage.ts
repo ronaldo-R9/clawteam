@@ -117,6 +117,13 @@ export class FileDatabase {
     return savedMatch;
   }
 
+  getLeaderboard(offset: number, limit: number): PublicUser[] {
+    return [...this.data.users]
+      .sort((a, b) => b.wins - a.wins || b.bestScore - a.bestScore)
+      .slice(offset, offset + limit)
+      .map((user) => this.toPublicUser(user));
+  }
+
   private toPublicUser(user: UserRecord): PublicUser {
     return {
       id: user.id,
